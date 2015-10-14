@@ -1,0 +1,51 @@
+*ctrlp-window.txt*						*ctrlp-window*
+
+Version: 1.0.0
+Author : DeaR <nayuri@kuonn.mydns.jp>
+License: Vim License  (see :help |license|)
+
+==============================================================================
+CONTENTS					*ctrlp-window-contents*
+
+INTRODUCTION					|ctrlp-window-introduction|
+REQUIREMENTS					|ctrlp-window-requirements|
+INTERFACE					|ctrlp-window-interface|
+  COMMANDS					|ctrlp-window-commands|
+CHANGELOG					|ctrlp-window-changelog|
+
+
+==============================================================================
+INTRODUCTION					*ctrlp-window-introduction*
+
+|window| extension for |CtrlP|.
+
+
+==============================================================================
+REQUIREMENTS					*ctrlp-window-requirements*
+
+- Vim 7.3 or later
+- |CtrlP|
+
+|CtrlP|		(http://kien.github.com/ctrlp.vim)
+
+
+==============================================================================
+INTERFACE					*ctrlp-window-interface*
+------------------------------------------------------------------------------
+COMMANDS					*ctrlp-window-commands*
+
+:CtrlPWindow						*:CtrlPWindow*
+	Browse |window| in current |tab-page|.
+
+:CtrlPWindowAll						*:CtrlPWindowAll*
+	Browse |window| in all |tab-page|.
+
+
+==============================================================================
+CHANGELOG					*ctrlp-window-changelog*
+
+1.0.0	First version.
+
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:noet:fen:
