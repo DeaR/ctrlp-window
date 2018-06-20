@@ -1,7 +1,7 @@
 " Window extension for CtrlP
 "
 " Maintainer:   DeaR <nayuri@kuonn.mydns.jp>
-" Last Change:  14-Oct-2015.
+" Last Change:  20-Jun-2018.
 " License:      Vim License  (see :help license)
 
 if exists('g:loaded_ctrlp_window') && g:loaded_ctrlp_window
@@ -19,35 +19,70 @@ call add(g:ctrlp_ext_vars, {
 
 let s:id = g:ctrlp_builtins + len(g:ctrlp_ext_vars)
 
-function! s:tabpagewinnr(tabnr, ...)
-  if a:tabnr == tabpagenr()
-    if a:0 == 0 && exists('s:crwinnr')
-      return s:crwinnr
-    elseif get(a:000, 0) == '#' && exists('s:prvwinnr')
-      return s:prvwinnr
-    elseif get(a:000, 0) == '$'
-      return tabpagewinnr(a:tabnr, '$') - 1
-    endif
-  endif
-  return call('tabpagewinnr', [a:tabnr] + a:000)
+let s:tabnr_width = 2
+let s:winnr_width = 2
+
+function! s:compmreb(...)
+  return ctrlp#call('s:compmreb', a:1[1], a:2[1])
+endfunction
+
+function! s:winparts(tabnr, winnr, bufnr, parts)
+  let idc  = (a:tabnr == tabpagenr() &&
+  \           a:winnr == s:alwinnr       ? '#' : '')  " alternative
+  let idc .= (getbufvar(a:bufnr, '&mod') ? '+' : '')  " modified
+  let idc .= (getbufvar(a:bufnr, '&ma')  ? '' : '-')  " nomodifiable
+  let idc .= (getbufvar(a:bufnr, '&ro')  ? '=' : '')  " readonly
+
+  let hiflags  = (bufwinnr(a:bufnr) != -1    ? '*' : '')  " visible
+  let hiflags .= (getbufvar(a:bufnr, '&mod') ? '+' : '')  " modified
+  let hiflags .= (a:tabnr == tabpagenr() &&
+  \               a:winnr == s:crwinnr       ? '!' : '')  " current
+
+  return [idc, hiflags, a:parts[2], a:parts[3]]
 endfunction
 
 function! s:process(tabnr, winnr, bufnr)
-  let name = bufname(a:bufnr)
-  let fname = fnamemodify(
-  \ empty(name) ? ('[' . a:bufnr . '*No Name]') : name, ':.')
-  let idc =
-  \ s:tabpagewinnr(a:tabnr)      == a:winnr ? '%' :
-  \ s:tabpagewinnr(a:tabnr, '#') == a:winnr ? '#' : ' '
-  return a:tabnr . ':' . a:winnr . ' ' . idc . " \t|" . fname . '|'
+  let parts = ctrlp#call('s:bufparts', a:bufnr)
+  let parts = s:winparts(a:tabnr, a:winnr, a:bufnr, parts)
+  let str = ''
+  if !ctrlp#nosy() && ctrlp#getvar('s:has_conceal')
+    let str .= printf(
+    \ '<nr>%' . s:tabnr_width . 's</nr>:' .
+    \ '<nr>%' . s:winnr_width . 's</nr>', a:tabnr, a:winnr)
+    let str .= printf(' %-13s %s%-36s',
+    \ '<bi>' . parts[0] . '</bi>',
+    \ '<bn>' . parts[1], '{' . parts[2] . '}</bn>')
+    if !empty(ctrlp#getvar('s:bufpath_mod'))
+      let str .= printf('  %s', '<bp>' . parts[3] . '</bp>')
+    endif
+  else
+    let str .= printf(
+    \ '%' . s:tabnr_width . 's:' .
+    \ '%' . s:winnr_width . 's', a:tabnr, a:winnr)
+    let str .= printf(' %-5s %-30s',
+    \ parts[0],
+    \ parts[2])
+    if !empty(ctrlp#getvar('s:bufpath_mod'))
+      let str .= printf('  %s', parts[3])
+    endif
+  endif
+  return str
 endfunction
 
 function! s:syntax()
-  if !ctrlp#nosy()
-    call ctrlp#hicheck('CtrlPBufName', 'Directory')
-    call ctrlp#hicheck('CtrlPTabExtra', 'Comment')
-    syntax match CtrlPBufName '\t|\zs[^|]\+\ze|$'
-    syntax match CtrlPTabExtra '\zs\t.*\ze$' contains=CtrlPBufName
+  call ctrlp#syntax()
+  if !ctrlp#nosy() && ctrlp#getvar('s:has_conceal')
+    syntax region CtrlPBufferNr     concealends matchgroup=Ignore start='<nr>' end='</nr>'
+    syntax region CtrlPBufferInd    concealends matchgroup=Ignore start='<bi>' end='</bi>'
+    syntax region CtrlPBufferRegion concealends matchgroup=Ignore start='<bn>' end='</bn>'
+    \ contains=CtrlPBufferHid,CtrlPBufferHidMod,CtrlPBufferVis,CtrlPBufferVisMod,CtrlPBufferCur,CtrlPBufferCurMod
+    syntax region CtrlPBufferHid    concealends matchgroup=Ignore     start='\s*{' end='}' contained
+    syntax region CtrlPBufferHidMod concealends matchgroup=Ignore    start='+\s*{' end='}' contained
+    syntax region CtrlPBufferVis    concealends matchgroup=Ignore   start='\*\s*{' end='}' contained
+    syntax region CtrlPBufferVisMod concealends matchgroup=Ignore  start='\*+\s*{' end='}' contained
+    syntax region CtrlPBufferCur    concealends matchgroup=Ignore  start='\*!\s*{' end='}' contained
+    syntax region CtrlPBufferCurMod concealends matchgroup=Ignore start='\*+!\s*{' end='}' contained
+    syntax region CtrlPBufferPath   concealends matchgroup=Ignore start='<bp>' end='</bp>'
   endif
 endfunction
 
@@ -58,8 +93,9 @@ function! ctrlp#window#init(bufnr)
   call filter(tabs, 'v:val > 0')
   let wins = []
   for each in tabs
-    call extend(wins, map(filter(tabpagebuflist(each),
-    \ 'v:val != a:bufnr'), 's:process(each, v:key + 1, v:val)'))
+    call extend(wins, map(sort(filter(map(tabpagebuflist(each), '[v:key + 1, v:val]'),
+    \ 'v:val[1] != a:bufnr && (each != tabpagenr() || v:val[0] != s:crwinnr)'), 's:compmreb'),
+    \ 's:process(each, v:val[0], v:val[1])'))
   endfor
   call s:syntax()
   return wins
@@ -81,11 +117,11 @@ function! ctrlp#window#cmd(mode, ...)
     let s:clmode = 0
     let s:tabnr = a:1
   endif
-  let s:crwinnr  = winnr()
-  let s:prvwinnr = winnr('#')
+  let s:crwinnr = winnr()
+  let s:alwinnr = winnr('#')
   return s:id
 endfunction
 
 function! ctrlp#window#exit()
-  unlet! s:clmode s:tabnr s:crwinnr s:prvwinnr
+  unlet! s:clmode s:tabnr s:crwinnr s:alwinnr
 endfunction
