@@ -1,6 +1,6 @@
 *ctrlp-window.txt*						*ctrlp-window*
 
-Version: 1.0.0
+Version: 1.1.0
 Author : DeaR <nayuri@kuonn.mydns.jp>
 License: Vim License  (see :help |license|)
 
@@ -44,6 +44,7 @@ COMMANDS					*ctrlp-window-commands*
 ==============================================================================
 CHANGELOG					*ctrlp-window-changelog*
 
+1.1.0	Fix style.
 1.0.0	First version.
 
 
